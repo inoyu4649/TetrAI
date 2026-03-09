@@ -355,6 +355,8 @@
                 this.touchStartX = 0;
                 this.touchStartY = 0;
                 this.touchStartTime = 0;
+                this.lastMoveX = 0;
+                this.movementThreshold = 20; // 이동 감지 임계값 (픽셀)
             }
 
             initializeBoard() {
@@ -414,7 +416,36 @@
             }
 
             handleTouchMove(e) {
-                e.preventDefault();
+                if (!this.gameRunning) return;
+
+                const currentX = e.touches[0].clientX;
+                const currentY = e.touches[0].clientY;
+                const deltaX = currentX - this.touchStartX;
+                const deltaY = currentY - this.touchStartY;
+
+                // 수직 이동이 크면 수평 이동 무시 (드래그 다운은 스와이프로 처리)
+                if (Math.abs(deltaY) > 50) {
+                    return;
+                }
+
+                // 수평 이동만 처리 (좌우 이동)
+                if (Math.abs(deltaX) >= this.movementThreshold && Math.abs(deltaX) > Math.abs(deltaY)) {
+                    // 이동한 거리에 따라 이동 칸 수 계산
+                    const blockWidth = this.gameBoard.offsetWidth / 10; // 게임 보드 너비 / 컬럼 수
+                    const moveDistance = Math.abs(deltaX - this.lastMoveX);
+
+                    // 한 칸에 해당하는 거리만큼 이동했을 때
+                    if (moveDistance >= blockWidth) {
+                        if (deltaX > this.lastMoveX) {
+                            // 우측 이동
+                            this.movePiece(1, 0);
+                        } else {
+                            // 좌측 이동
+                            this.movePiece(-1, 0);
+                        }
+                        this.lastMoveX = deltaX;
+                    }
+                }
             }
 
             handleTouchEnd(e) {
@@ -432,7 +463,7 @@
                 const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
                 const velocity = distance / deltaTime; // 픽셀/밀리초
 
-                // 아래로 스와이프 감지
+                // 아래로 스와이프 감지 (아래로만 처리, 좌우는 touchMove에서 처리)
                 if (deltaY > 30 && Math.abs(deltaX) < Math.abs(deltaY)) {
                     if (velocity > 0.5) {
                         // 강한 스와이프: Hard Drop
@@ -442,14 +473,9 @@
                         this.movePiece(0, 1);
                     }
                 }
-                // 좌측으로 스와이프 감지
-                else if (deltaX < -30 && Math.abs(deltaX) > Math.abs(deltaY)) {
-                    this.movePiece(-1, 0);
-                }
-                // 우측으로 스와이프 감지
-                else if (deltaX > 30 && Math.abs(deltaX) > Math.abs(deltaY)) {
-                    this.movePiece(1, 0);
-                }
+
+                // 터치 상태 초기화
+                this.lastMoveX = 0;
             }
 
             handleTap(e) {
